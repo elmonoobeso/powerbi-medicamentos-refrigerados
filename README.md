@@ -73,8 +73,9 @@ En la captura, la columna de correo está pixelada.
 | 2 | **Redactar** | Prepara los datos del pedido para el correo. |
 | 3 | **Retraso hasta** | Espera hasta la fecha de próxima dispensación. |
 | 4 | **Enviar correo electrónico con opciones** (Outlook) | Pregunta al paciente: *Acepto / No acepto*. |
-| 5 | **Condición**: acepta | Envía un aviso a la farmacia y actualiza el elemento con `Estado = LISTO PARA PEDIR`. |
-| 5 | **Condición**: no acepta | Actualiza el elemento con `Estado = PEDIDO DENEGADO`. |
+| 5 | **Condición** | Comprueba la respuesta del paciente y sigue por una de dos ramas. |
+| 5a | Rama *Acepto* | Envía un aviso a la farmacia y actualiza el elemento con `Estado = LISTO PARA PEDIR`. |
+| 5b | Rama *No acepto* | Actualiza el elemento con `Estado = PEDIDO DENEGADO`. |
 
 ### Flujo 2: aviso de llegada
 
