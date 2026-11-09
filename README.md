@@ -1,5 +1,7 @@
 # Cuadro de mando de medicamentos refrigerados de alto valor en Power BI
 
+**Español** · [English](#english-summary)
+
 **Power BI + SharePoint + Power Automate**
 
 Cuadro de mando para controlar los medicamentos refrigerados de alto valor de una farmacia: agonistas GLP-1, insulinas y otros tratamientos en cadena de frío. Muestra cuánto dinero hay inmovilizado en la nevera, qué tratamientos se van a dispensar y a qué pacientes hay que avisar. Dos flujos de Power Automate preguntan al paciente si quiere su siguiente dispensación y le avisan cuando llega el pedido. Las capturas de este repositorio usan datos sintéticos.
@@ -28,16 +30,16 @@ El programa de gestión de la farmacia no da una vista del stock refrigerado ni 
 
 ```mermaid
 flowchart LR
-    A[Nuevo pedido en SharePoint] --> B[Espera hasta la fecha de próxima dispensación]
-    B --> C{¿El paciente acepta?}
-    C -- Sí --> D[Aviso a la farmacia<br/>Estado = LISTO PARA PEDIR]
-    C -- No --> E[Estado = PEDIDO DENEGADO]
-    D --> F[Llega el pedido: cambia el ESTADO]
-    F --> G[Correo al paciente con fecha y hora de llegada]
-    A -.-> H[Power BI: modelo y medidas DAX]
+    A["Nuevo pedido en SharePoint"] --> B["Espera hasta la fecha de próxima dispensación"]
+    B --> C{"¿El paciente acepta?"}
+    C -->|Sí| D["Aviso a la farmacia<br/>Estado = LISTO PARA PEDIR"]
+    C -->|No| E["Estado = PEDIDO DENEGADO"]
+    D --> F["Llega el pedido: cambia el ESTADO"]
+    F --> G["Correo al paciente con fecha y hora de llegada"]
+    A -.-> H["Power BI: modelo y medidas DAX"]
     D -.-> H
     E -.-> H
-    H --> I[Cuadro de mando]
+    H --> I["Cuadro de mando"]
 ```
 
 ### Lista de SharePoint
@@ -65,7 +67,23 @@ En la captura, la columna de correo está pixelada.
 
 ### Flujo 1: confirmación del pedido
 
+```mermaid
+flowchart TD
+    T(["1 · Cuando se crea un elemento<br/>SharePoint"]) --> R["2 · Redactar<br/>datos del pedido"]
+    R --> W["3 · Retraso hasta<br/>fecha de próxima dispensación"]
+    W --> M["4 · Enviar correo con opciones<br/>Acepto / No acepto"]
+    M --> C{"5 · Condición<br/>¿Acepta?"}
+    C -->|Sí| N["Correo de aviso a la farmacia"]
+    N --> U1["Actualizar elemento<br/>Estado = LISTO PARA PEDIR"]
+    C -->|No| U2["Actualizar elemento<br/>Estado = PEDIDO DENEGADO"]
+```
+
+<details>
+<summary>Captura del flujo en Power Automate</summary>
+
 ![Flujo de confirmación del pedido](docs/powerautomate_confirmacion_pedido.png)
+
+</details>
 
 | Paso | Acción | Qué hace |
 | --- | --- | --- |
@@ -73,13 +91,25 @@ En la captura, la columna de correo está pixelada.
 | 2 | **Redactar** | Prepara los datos del pedido para el correo. |
 | 3 | **Retraso hasta** | Espera hasta la fecha de próxima dispensación. |
 | 4 | **Enviar correo electrónico con opciones** (Outlook) | Pregunta al paciente: *Acepto / No acepto*. |
-| 5 | **Condición** | Comprueba la respuesta del paciente y sigue por una de dos ramas. |
-| 5a | Rama *Acepto* | Envía un aviso a la farmacia y actualiza el elemento con `Estado = LISTO PARA PEDIR`. |
-| 5b | Rama *No acepto* | Actualiza el elemento con `Estado = PEDIDO DENEGADO`. |
+| 5 | **Condición** | Comprueba la respuesta del paciente. Si **acepta**, envía un aviso a la farmacia y actualiza el elemento con `Estado = LISTO PARA PEDIR`. Si **no acepta**, actualiza el elemento con `Estado = PEDIDO DENEGADO`. |
 
 ### Flujo 2: aviso de llegada
 
+```mermaid
+flowchart TD
+    T(["1 · Cuando se crea o modifica un elemento<br/>SharePoint"]) --> G["2 · Obtener cambios del elemento<br/>solo propiedades"]
+    G --> R["3 · Redactar<br/>¿ha cambiado ESTADO?"]
+    R --> C{"4 · Condición"}
+    C -->|Sí| M["Correo al paciente<br/>fecha y hora de llegada"]
+    C -->|No| X["No hace nada"]
+```
+
+<details>
+<summary>Captura del flujo en Power Automate</summary>
+
 ![Flujo de aviso de llegada](docs/powerautomate_aviso_llegada.png)
+
+</details>
 
 | Paso | Acción | Qué hace |
 | --- | --- | --- |
@@ -111,9 +141,53 @@ Con **Obtener cambios**, el correo solo sale cuando cambia el estado y no con cu
 - **Power Apps**: primer prototipo del formulario de registro de pedidos (ver [Qué haría distinto](#qué-haría-distinto)).
 - **Outlook**: envío de los correos a pacientes y a la farmacia.
 
+## Requisitos
+
+### Licencias y servicios
+
+| Requisito | Para qué | Notas |
+| --- | --- | --- |
+| **Microsoft 365** (plan empresarial con SharePoint Online y Exchange Online) | Lista `STOCK_CONTROL`, correos de Outlook y Power Automate. | Los conectores que usan los flujos (SharePoint, Outlook, Retraso, Condición) son estándar: no hace falta licencia *premium* de Power Automate. |
+| **Power BI Desktop** | Construir el modelo, las medidas DAX y los visuales. | Gratuito. Solo para Windows. |
+| **Power BI Pro** (o Premium por usuario / capacidad Fabric) | Publicar en el Power BI Service, compartir el informe y programar la actualización. | Con Pro, hasta 8 actualizaciones al día. SharePoint Online es un origen en la nube: no necesita *gateway*. |
+| **Power Apps** (opcional) | Formulario de registro de pedidos. | Solo para el prototipo descrito en [Qué haría distinto](#qué-haría-distinto). |
+
+### Permisos
+
+- Crear y editar listas en un sitio de SharePoint.
+- Crear flujos de Power Automate con conexiones a SharePoint y Outlook. La cuenta del flujo es la que envía los correos.
+- Un área de trabajo en el Power BI Service donde publicar el informe.
+
+### Configuración
+
+- **Zona horaria común** en el sitio de SharePoint, en los flujos y en Power BI (ver [Problemas encontrados](#problemas-encontrados)).
+- **Fechas de próxima dispensación a menos de 30 días** del registro: es el máximo que una ejecución de Power Automate puede esperar con «Retraso hasta».
+- Correo electrónico del paciente en cada pedido, y su consentimiento para recibir los avisos (RGPD).
+
+### Conocimientos
+
+- Power Query y modelado en estrella en Power BI.
+- DAX intermedio: `CALCULATE`, `USERELATIONSHIP`, variables y `SWITCH ( TRUE () )`.
+- Power Automate: desencadenadores de SharePoint, correos con opciones y condiciones.
+
 ## Modelo de datos y medidas clave
 
+```mermaid
+erDiagram
+    PRODUCTS ||--o{ STOCK_CONTROL : "CODIGO NACIONAL"
+    TIME_TABLE ||--o{ STOCK_CONTROL : "FECHA REGISTRO (activa)"
+    TIME_TABLE ||..o{ STOCK_CONTROL : "FECHA DISPENSACION FUTURA (inactiva)"
+    TIME_TABLE ||..o{ STOCK_CONTROL : "FECHA Y HORA de llegada (inactiva)"
+```
+
+Línea continua: relación activa. Línea discontinua: relación inactiva, que se activa con `USERELATIONSHIP`.
+
+<details>
+<summary>Captura de la vista de modelo en Power BI</summary>
+
 ![Modelo de datos](docs/modelo_datos.png)
+
+</details>
 
 Esquema en estrella con una tabla de hechos, dos dimensiones y una tabla aparte para las medidas:
 
@@ -247,6 +321,8 @@ En el visual, el valor se muestra como icono con formato condicional.
 
 ## Cómo recrearlo
 
+Antes de empezar, revisa los [requisitos](#requisitos).
+
 1. Crea en SharePoint la lista de pedidos con las columnas de `STOCK_CONTROL` (`CODIGO NACIONAL`, `EMAIL`, `ESTADO DEL PEDIDO`, `ORIGEN`, `FECHA REGISTRO`, `FECHA DISPENSACION FUTURA`…) y una lista de productos con `CODIGO NACIONAL` y `TIPO DE PRODUCTO`.
 2. Monta los dos flujos de Power Automate siguiendo las tablas de pasos de arriba.
 3. En Power BI Desktop, conéctate a las listas con el conector **Lista de SharePoint Online**, añade una tabla calendario, crea las relaciones del modelo y las medidas DAX de este README.
@@ -308,6 +384,146 @@ Las cifras son del conjunto de datos sintético. No miden el impacto en la farma
 - LinkedIn: https://www.linkedin.com/in/miguel-leo-acedo
 - Otro proyecto: SmartPharma, https://smartpharmai.github.io/
 
-## Licencia
+---
+
+## English summary
+
+[Español](#cuadro-de-mando-de-medicamentos-refrigerados-de-alto-valor-en-power-bi) · **English**
+
+**High-value refrigerated medicines dashboard in Power BI** · Power BI + SharePoint + Power Automate
+
+A dashboard to control a pharmacy's high-value cold-chain medicines: GLP-1 agonists, insulins and other refrigerated treatments. It shows how much money is tied up in the fridge, which treatments are about to be dispensed and which patients need to be contacted. Two Power Automate flows ask patients whether they want their next dispensation and notify them when the order arrives. All screenshots use synthetic data. Database columns, measures and screenshots are in Spanish, as in the original solution.
+
+### The problem
+
+A demo project based on five years of working in community pharmacy. GLP-1 agonists (Ozempic, Mounjaro, Wegovy…) combine four problems:
+
+- **High unit price**: every pen sitting in the fridge is a lot of tied-up money.
+- **Shortages**: they must be ordered in advance and reserved for the patient.
+- **Growing demand**: more patients start treatment every month.
+- **Patients who never pick up**: the pharmacy orders for a patient who then doesn't come.
+
+The last one is the most expensive, because **a refrigerated product can only be returned to the wholesaler within 48 hours of delivery** (10 days for other products). After that, the box stays in the fridge until another patient needs it, or until it expires. The pharmacy management software gives no view of refrigerated stock and doesn't notify patients. The goal is to **order only what the patient has confirmed they will pick up, at the right time**.
+
+### The solution
+
+1. Each patient order is logged in a **SharePoint** list (`STOCK_CONTROL`) with the next dispensation date.
+2. On that date, **Power Automate** emails the patient asking whether they want the treatment. If they accept, the pharmacy is notified and the order is set to `LISTO PARA PEDIR` (*ready to order*). If not, it is set to `PEDIDO DENEGADO` (*order declined*) and no money is tied up.
+3. When the order status changes (for example, when it arrives), a second flow emails the patient with the arrival date and time.
+4. **Power BI** reads the list and uses **DAX** to calculate fridge stock, tied-up money, treatment progress and order priority.
+
+```mermaid
+flowchart LR
+    A["New order in SharePoint"] --> B["Wait until next dispensation date"]
+    B --> C{"Does the patient accept?"}
+    C -->|Yes| D["Notify the pharmacy<br/>Status = LISTO PARA PEDIR"]
+    C -->|No| E["Status = PEDIDO DENEGADO"]
+    D --> F["Order arrives: STATUS changes"]
+    F --> G["Email the patient with arrival date and time"]
+    A -.-> H["Power BI: model and DAX measures"]
+    D -.-> H
+    E -.-> H
+    H --> I["Dashboard"]
+```
+
+**Flow 1, order confirmation**: SharePoint *When an item is created* → *Compose* (order data) → *Delay until* the next dispensation date → Outlook *Send email with options* (*Accept / Decline*) → *Condition*: if accepted, email the pharmacy and set `Status = LISTO PARA PEDIR`; if declined, set `Status = PEDIDO DENEGADO`.
+
+**Flow 2, arrival notice**: SharePoint *When an item or file is created or modified* → *Get changes for an item or a file (properties only)* → *Compose* (did `ESTADO` change?) → *Condition*: if the status changed, email the patient with the arrival date and time. Using *Get changes* means the email only goes out on a status change, not on any edit.
+
+### Main list columns
+
+| Column | Purpose |
+| --- | --- |
+| `Título` | Product and dose (e.g. *SAXENDA 6 MG*). |
+| `CODIGO NACIONAL` | National product code; key to the product catalogue. |
+| `TIPO DE PRODUCTO` | GLP-1 agonists, insulins, oral antidiabetics or other. |
+| `ESTADO DEL PEDIDO` | Order status, updated by the flows. |
+| `FECHA PROXIMA DISPENSACION` | When the patient is asked; Flow 1 waits until this date. |
+| `FECHA REGISTRO` | Treatment start; base for `%progreso`. |
+| `EMAIL` / `TELEFONO` | Patient contact. The report only shows a masked email. |
+| `FECHA Y HORA` | Arrival date and time sent to the patient. |
+| `IMPORTE` | Order value; base for fridge stock and tied-up money. |
+| `FARMACIA` | Pharmacy that logged the order, so several pharmacies in a group can share the solution. |
+| `ORIGEN` | `Stock` (served on the spot) or `Pedido` (had to be ordered); base for the immediate service rate. |
+| `COMENTARIO` | Free-text notes. |
+
+### What the dashboard shows
+
+| Visual | Question it answers |
+| --- | --- |
+| Insulin immediacy | What share of insulin orders is served from stock? |
+| GLP-1 immediate service vs. monthly target | Am I meeting my target? (20 % is an example, configurable per pharmacy.) |
+| Total money in the fridge | How much refrigerated stock do I have today? |
+| Orders by group and product | Which group weighs most: GLP-1, insulins, oral antidiabetics or other? |
+| Tied-up money (value vs. days in stock) | Which product has been sitting longest and what is it worth? Vertical lines mark the return windows: **48 h** for refrigerated products and **10 days** for the rest. |
+| Upcoming dispensations with traffic light | Which orders must be placed or confirmed this week, and which are priority? |
+| Top 10 treatment consumed, with delay | Which patients are about to finish their treatment and usually pick up late? |
+| Monthly orders | How is demand evolving? |
+
+### Data model and key measures
+
+Star schema: fact table `STOCK_CONTROL` (one row per patient order, with calculated columns such as `emailmasked`), dimensions `PRODUCTS` (by `CODIGO NACIONAL`, with `TIPO DE PRODUCTO`) and `TIME_TABLE` (calendar), plus a `Medidas` table holding the DAX measures. `TIME_TABLE` has three relationships to the fact table: `FECHA REGISTRO` is active; the future dispensation date and the arrival date are inactive and enabled with `USERELATIONSHIP`, so one calendar serves all three dates. Power Query converts types (SharePoint returns dates, amounts and codes as text), drops SharePoint's internal columns and builds `PRODUCTS` from the list.
+
+| Measure | What it does |
+| --- | --- |
+| `Tasa Servicio Inmediato` | Share of orders served from stock (`ORIGEN = "Stock"`). `+ 0` shows 0 % instead of blank. |
+| `%progreso` | Share of time elapsed between order registration and next dispensation. Allows a 20 % tolerance; above 120 % the patient is considered off treatment and drops out of the ranking. |
+| `Etiqueta%ypereza` | Data label combining progress and the patient's usual pickup delay, e.g. `97% (+1d demora)`. |
+| `Semáforo Acción Pedido` | Order priority: 🔴 (3) GLP-1 and a patient who usually takes more than 3 days to pick up, so confirm before ordering; 🟡 (2) GLP-1 and a reliable patient, so order and follow up; 🟢 (1) not GLP-1, low risk. The 3-day threshold is tied to the 48-hour return window. |
+
+The full DAX code is in the Spanish sections above.
+
+### Requirements
+
+- **Microsoft 365** business plan with SharePoint Online and Exchange Online. The flows only use standard connectors, so no Power Automate premium licence is needed.
+- **Power BI Desktop** (free, Windows only) to build the model and report.
+- **Power BI Pro** (or Premium Per User / Fabric capacity) to publish, share and schedule refreshes. SharePoint Online is a cloud source, so no gateway is required.
+- **Power Apps** (optional), only for the order-entry prototype.
+- Permissions to create SharePoint lists, Power Automate flows with SharePoint and Outlook connections, and a Power BI workspace.
+- A common time zone across SharePoint, Power Automate and Power BI, and next dispensation dates within 30 days (the maximum a Power Automate run can wait).
+- Patient email and consent to receive notifications (GDPR).
+- Skills: Power Query, star-schema modelling, intermediate DAX and Power Automate basics.
+
+### How to recreate it
+
+1. Create the SharePoint order list with the `STOCK_CONTROL` columns, and a product list with `CODIGO NACIONAL` and `TIPO DE PRODUCTO`.
+2. Build the two Power Automate flows following the steps above.
+3. In Power BI Desktop, connect with the **SharePoint Online List** connector, add a calendar table, create the relationships and the DAX measures.
+4. Build the visuals using the dashboard screenshot as reference.
+
+### What the sample data shows
+
+Figures come from the synthetic dataset. They don't measure real impact; they show what the dashboard answers at a glance:
+
+- **€48,270** in refrigerated stock today, with products worth over €100 sitting for more than 300 days, far past the return window.
+- **87.85 %** of insulin orders are served from stock, but only **6.06 %** of GLP-1 orders, below the 20 % target: a reflection of the shortage.
+- **416 GLP-1 orders vs. 107 insulin orders**: the most expensive group also has the highest demand.
+- A daily list of patients about to finish their treatment, with their usual pickup delay and a traffic light telling which orders to confirm before ordering.
+
+### Data and privacy (GDPR)
+
+- Demo project: this repository contains **no real data** and no `.pbix` file, only screenshots built on a synthetic dataset.
+- **Data minimisation**: the report never shows the patient's full email. The `emailmasked` column keeps only the first letters (`luc*****@gmail.com`). In the SharePoint screenshot, the email column is pixelated.
+
+### Key decisions and lessons learned
+
+- **Confirm with the patient before ordering**: a refrigerated product can only be returned within 48 hours.
+- **Email instead of WhatsApp**: zero cost with Microsoft 365, and many pharmacies have no business phone.
+- **`FARMACIA` column from day one**: one solution for several pharmacies in a group.
+- **SharePoint lists as the source**: included in Microsoft 365, no server, native Power Automate triggers.
+- **Problems found**: SharePoint stores dates in UTC, which shifted them in Power BI and emails; Power Automate runs can't last more than 30 days.
+- **What I'd do differently**: split patients, products and orders into separate lists from the start, and make order entry easier. A Power Apps form didn't work because staff have no time to fill it in mid-shift; adoption depends more on how easy it is to log an order than on the dashboard.
+
+### Next steps
+
+- **Order logging from a receipt photo** (OCR) so logging takes seconds.
+- **Demand forecasting** with machine learning to anticipate GLP-1 orders per month and per patient.
+- **WhatsApp as an optional channel**, only if the pharmacy asks for it and covers the cost.
+
+### Author
+
+**Miguel Ángel Leo Acedo**, data / BI analyst with five years in pharmacy. [LinkedIn](https://www.linkedin.com/in/miguel-leo-acedo) · Other project: [SmartPharma](https://smartpharmai.github.io/)
+
+## Licencia / License
 
 [MIT](LICENSE).
