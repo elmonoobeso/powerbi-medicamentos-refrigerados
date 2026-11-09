@@ -67,23 +67,7 @@ En la captura, la columna de correo está pixelada.
 
 ### Flujo 1: confirmación del pedido
 
-```mermaid
-flowchart TD
-    T(["1 · Cuando se crea un elemento<br/>SharePoint"]) --> R["2 · Redactar<br/>datos del pedido"]
-    R --> W["3 · Retraso hasta<br/>fecha de próxima dispensación"]
-    W --> M["4 · Enviar correo con opciones<br/>Acepto / No acepto"]
-    M --> C{"5 · Condición<br/>¿Acepta?"}
-    C -->|Sí| N["Correo de aviso a la farmacia"]
-    N --> U1["Actualizar elemento<br/>Estado = LISTO PARA PEDIR"]
-    C -->|No| U2["Actualizar elemento<br/>Estado = PEDIDO DENEGADO"]
-```
-
-<details>
-<summary>Captura del flujo en Power Automate</summary>
-
 ![Flujo de confirmación del pedido](docs/powerautomate_confirmacion_pedido.png)
-
-</details>
 
 | Paso | Acción | Qué hace |
 | --- | --- | --- |
@@ -95,21 +79,7 @@ flowchart TD
 
 ### Flujo 2: aviso de llegada
 
-```mermaid
-flowchart TD
-    T(["1 · Cuando se crea o modifica un elemento<br/>SharePoint"]) --> G["2 · Obtener cambios del elemento<br/>solo propiedades"]
-    G --> R["3 · Redactar<br/>¿ha cambiado ESTADO?"]
-    R --> C{"4 · Condición"}
-    C -->|Sí| M["Correo al paciente<br/>fecha y hora de llegada"]
-    C -->|No| X["No hace nada"]
-```
-
-<details>
-<summary>Captura del flujo en Power Automate</summary>
-
 ![Flujo de aviso de llegada](docs/powerautomate_aviso_llegada.png)
-
-</details>
 
 | Paso | Acción | Qué hace |
 | --- | --- | --- |
@@ -172,22 +142,7 @@ Con **Obtener cambios**, el correo solo sale cuando cambia el estado y no con cu
 
 ## Modelo de datos y medidas clave
 
-```mermaid
-erDiagram
-    PRODUCTS ||--o{ STOCK_CONTROL : "CODIGO NACIONAL"
-    TIME_TABLE ||--o{ STOCK_CONTROL : "FECHA REGISTRO (activa)"
-    TIME_TABLE ||..o{ STOCK_CONTROL : "FECHA DISPENSACION FUTURA (inactiva)"
-    TIME_TABLE ||..o{ STOCK_CONTROL : "FECHA Y HORA de llegada (inactiva)"
-```
-
-Línea continua: relación activa. Línea discontinua: relación inactiva, que se activa con `USERELATIONSHIP`.
-
-<details>
-<summary>Captura de la vista de modelo en Power BI</summary>
-
 ![Modelo de datos](docs/modelo_datos.png)
-
-</details>
 
 Esquema en estrella con una tabla de hechos, dos dimensiones y una tabla aparte para las medidas:
 
