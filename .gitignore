@@ -1,0 +1,13 @@
+# Archivos de Power BI: pueden contener datos reales, no se suben
+*.pbix
+*.pbit
+
+# Datos locales
+*.csv
+*.xlsx
+~$*
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
